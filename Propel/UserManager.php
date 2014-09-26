@@ -13,8 +13,8 @@ namespace FOS\UserBundle\Propel;
 
 use FOS\UserBundle\Model\UserInterface;
 use FOS\UserBundle\Model\UserManager as BaseUserManager;
-use FOS\UserBundle\Util\CanonicalizerInterface;
-use Symfony\Component\Security\Core\Encoder\EncoderFactoryInterface;
+use FOS\UserBundle\Util\CanonicalFieldsUpdater;
+use FOS\UserBundle\Util\PasswordUpdater;
 
 class UserManager extends BaseUserManager
 {
@@ -23,14 +23,13 @@ class UserManager extends BaseUserManager
     /**
      * Constructor.
      *
-     * @param EncoderFactoryInterface $encoderFactory
-     * @param CanonicalizerInterface  $usernameCanonicalizer
-     * @param CanonicalizerInterface  $emailCanonicalizer
+     * @param PasswordUpdater         $passwordUpdater
+     * @param CanonicalFieldsUpdater  $canonicalFieldsUpdater
      * @param string                  $class
      */
-    public function __construct(EncoderFactoryInterface $encoderFactory, CanonicalizerInterface $usernameCanonicalizer, CanonicalizerInterface $emailCanonicalizer, $class)
+    public function __construct(PasswordUpdater $passwordUpdater, CanonicalFieldsUpdater $canonicalFieldsUpdater, $class)
     {
-        parent::__construct($encoderFactory, $usernameCanonicalizer, $emailCanonicalizer);
+        parent::__construct($passwordUpdater, $canonicalFieldsUpdater);
 
         $this->class = $class;
     }

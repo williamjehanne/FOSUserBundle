@@ -11,8 +11,9 @@
 
 namespace FOS\UserBundle\Model;
 
+use FOS\UserBundle\Util\CanonicalFieldsUpdater;
 use FOS\UserBundle\Util\CanonicalizerInterface;
-use Symfony\Component\Security\Core\Encoder\EncoderFactoryInterface;
+use FOS\UserBundle\Util\PasswordUpdater;
 use Symfony\Component\Security\Core\Exception\UnsupportedUserException;
 use Symfony\Component\Security\Core\Exception\UsernameNotFoundException;
 use Symfony\Component\Security\Core\User\UserInterface as SecurityUserInterface;
@@ -26,33 +27,13 @@ use Symfony\Component\Security\Core\User\UserProviderInterface;
  */
 abstract class UserManager implements UserManagerInterface, UserProviderInterface
 {
-    /**
-     * @var EncoderFactoryInterface 
-     */
-    protected $encoderFactory;
-    
-    /**
-     * @var CanonicalizerInterface 
-     */
-    protected $usernameCanonicalizer;
-    
-    /**
-     * @var CanonicalizerInterface
-     */
-    protected $emailCanonicalizer;
+    private $passwordUpdater;
+    private $canonicalFieldsUpdater;
 
-    /**
-     * Constructor.
-     *
-     * @param EncoderFactoryInterface $encoderFactory
-     * @param CanonicalizerInterface  $usernameCanonicalizer
-     * @param CanonicalizerInterface  $emailCanonicalizer
-     */
-    public function __construct(EncoderFactoryInterface $encoderFactory, CanonicalizerInterface $usernameCanonicalizer, CanonicalizerInterface $emailCanonicalizer)
+    public function __construct(PasswordUpdater $passwordUpdater, CanonicalFieldsUpdater $canonicalFieldsUpdater)
     {
-        $this->encoderFactory = $encoderFactory;
-        $this->usernameCanonicalizer = $usernameCanonicalizer;
-        $this->emailCanonicalizer = $emailCanonicalizer;
+        $this->passwordUpdater = $passwordUpdater;
+        $this->canonicalFieldsUpdater = $canonicalFieldsUpdater;
     }
 
     /**
@@ -77,7 +58,7 @@ abstract class UserManager implements UserManagerInterface, UserProviderInterfac
      */
     public function findUserByEmail($email)
     {
-        return $this->findUserBy(array('emailCanonical' => $this->canonicalizeEmail($email)));
+        return $this->findUserBy(array('emailCanonical' => $this->canonicalFieldsUpdater->canonicalizeEmail($email)));
     }
 
     /**
@@ -89,7 +70,7 @@ abstract class UserManager implements UserManagerInterface, UserProviderInterfac
      */
     public function findUserByUsername($username)
     {
-        return $this->findUserBy(array('usernameCanonical' => $this->canonicalizeUsername($username)));
+        return $this->findUserBy(array('usernameCanonical' => $this->canonicalFieldsUpdater->canonicalizeUsername($username)));
     }
 
     /**
@@ -185,8 +166,7 @@ abstract class UserManager implements UserManagerInterface, UserProviderInterfac
      */
     public function updateCanonicalFields(UserInterface $user)
     {
-        $user->setUsernameCanonical($this->canonicalizeUsername($user->getUsername()));
-        $user->setEmailCanonical($this->canonicalizeEmail($user->getEmail()));
+        $this->canonicalFieldsUpdater->updateCanonicalFields($user);
     }
 
     /**
@@ -194,40 +174,7 @@ abstract class UserManager implements UserManagerInterface, UserProviderInterfac
      */
     public function updatePassword(UserInterface $user)
     {
-        if (0 !== strlen($password = $user->getPlainPassword())) {
-            $encoder = $this->getEncoder($user);
-            $user->setPassword($encoder->encodePassword($password, $user->getSalt()));
-            $user->eraseCredentials();
-        }
-    }
-
-    /**
-     * Canonicalizes an email
-     *
-     * @param string $email
-     *
-     * @return string
-     */
-    protected function canonicalizeEmail($email)
-    {
-        return $this->emailCanonicalizer->canonicalize($email);
-    }
-
-    /**
-     * Canonicalizes a username
-     *
-     * @param string $username
-     *
-     * @return string
-     */
-    protected function canonicalizeUsername($username)
-    {
-        return $this->usernameCanonicalizer->canonicalize($username);
-    }
-
-    protected function getEncoder(UserInterface $user)
-    {
-        return $this->encoderFactory->getEncoder($user);
+        $this->passwordUpdater->hashPassword($user);
     }
 
     /**
